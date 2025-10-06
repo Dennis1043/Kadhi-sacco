@@ -6,3 +6,4 @@ __pycache__/
 *.asar
 *.pyc
 .env
+kadhi-service-account.json
