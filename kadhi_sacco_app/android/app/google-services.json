@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "849028550491",
+    "project_id": "chama-96d8d",
+    "storage_bucket": "chama-96d8d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:849028550491:android:8eca822f40e847a413d47e",
+        "android_client_info": {
+          "package_name": "com.example.kadhi_sacco_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA40sd9DaZYBB6B-BRCx7v0ojOvB24HdhY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

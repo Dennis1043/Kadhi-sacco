@@ -1,0 +1,33 @@
+name: kadhi_sacco_app
+description: "A Flutter SACCO management app."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.9.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Firebase core
+  firebase_core: ^3.15.2
+  cloud_firestore: ^5.5.0
+  firebase_auth: ^5.2.0
+  firebase_analytics: ^10.2.0       # optional analytics
+  firebase_crashlytics: ^4.3.0      # optional crash reporting
+
+  # Networking
+  http: ^1.2.0
+
+  # UI
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true

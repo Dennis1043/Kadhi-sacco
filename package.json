@@ -1,0 +1,37 @@
+{
+  "name": "kadhi-sacco",
+  "version": "1.0.0",
+  "description": "Kadhi SACCO Desktop App",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^25.0.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.kadhi.sacco",
+    "productName": "KadhiSacco",
+    "directories": {
+      "buildResources": "assets",
+      "output": "dist_installer"
+    },
+    "files": [
+      "**/*",
+      "dist/app.exe",
+      "!node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
+      "!**/.*",
+      "!**/*.map"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Dashboard</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto&display=swap"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <style>
+    body { font-family: 'Roboto', sans-serif; margin: 0; background: #f5f5f5; }
+    header { background:#b80000;color:white;padding:15px;text-align:center;font-weight:bold;font-size:20px; }
+    .card { background:#fff; margin:15px; padding:15px; border-radius:10px; box-shadow:0 1px 3px rgba(0,0,0,0.1);}
+    .card-title { font-weight:bold; font-size:16px; color:#333; }
+    .card-value { font-size:22px; font-weight:bold; margin-top:5px; }
+    table { width:100%; border-collapse: collapse; margin-top:10px;}
+    th, td { border:1px solid #ddd; padding:8px; text-align:left; font-size:14px;}
+    th { background:#b80000; color:white; }
+    button { padding:5px 10px; border:none; border-radius:5px; cursor:pointer;}
+    .approve { background:green; color:white;}
+    .reject { background:red; color:white;}
+  </style>
+</head>
+<body>
+  <header>Admin Dashboard</header>
+
+  <!-- Summary -->
+  <div class="card">
+    <div class="card-title">Approved Contributions</div>
+    <div class="card-value" id="approvedTotal">KES 0</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Pending Contributions</div>
+    <div class="card-value" id="pendingTotal">KES 0</div>
+  </div>
+
+  <!-- Pending Contributions Table -->
+  <div class="card">
+    <div class="card-title">Pending Contributions</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Member</th>
+          <th>Amount</th>
+          <th>Purpose</th>
+          <th>M-Pesa Code</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="pendingList">
+        <tr><td colspan="5">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Approved Contributions Table -->
+  <div class="card">
+    <div class="card-title">Approved Contributions</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Member</th>
+          <th>Amount</th>
+          <th>Purpose</th>
+          <th>M-Pesa Code</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody id="approvedList">
+        <tr><td colspan="5">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+  
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+<script>
+const BACKEND_URL = "http://127.0.0.1:5000";
+
+const pendingList = document.getElementById("pendingList");
+const approvedList = document.getElementById("approvedList");
+const approvedTotalEl = document.getElementById("approvedTotal");
+const pendingTotalEl = document.getElementById("pendingTotal");
+
+async function loadContributions() {
+  pendingList.innerHTML = "<tr><td colspan='5'>Loading...</td></tr>";
+  approvedList.innerHTML = "<tr><td colspan='5'>Loading...</td></tr>";
+
+  try {
+    // ✅ Correct URL for all contributions
+    const res = await fetch(`${BACKEND_URL}/contributions/all`);
+    const data = await res.json();
+
+    let approvedTotal = 0, pendingTotal = 0;
+    pendingList.innerHTML = "";
+    approvedList.innerHTML = "";
+
+    data.rows.forEach(c => {
+      const rowPending = `
+        <tr>
+          <td>${c.member_name || "Unknown"}</td>
+          <td>KES ${Number(c.amount).toLocaleString()}</td>
+          <td>${c.purpose || "-"}</td>
+          <td>${c.mpesa_code || "-"}</td>
+          <td>
+            <button class="approve" onclick="updateStatus(${c.id},'approved')">Approve</button>
+            <button class="reject" onclick="updateStatus(${c.id},'rejected')">Reject</button>
+          </td>
+        </tr>`;
+
+      const rowApproved = `
+        <tr>
+          <td>${c.member_name || "Unknown"}</td>
+          <td>KES ${Number(c.amount).toLocaleString()}</td>
+          <td>${c.purpose || "-"}</td>
+          <td>${c.mpesa_code || "-"}</td>
+          <td>${new Date(c.timestamp).toLocaleString()}</td>
+        </tr>`;
+
+      if (c.status === "pending") {
+        pendingList.innerHTML += rowPending;
+        pendingTotal += Number(c.amount) || 0;
+      } else if (c.status === "approved") {
+        approvedList.innerHTML += rowApproved;
+        approvedTotal += Number(c.amount) || 0;
+      }
+    });
+
+    pendingTotalEl.textContent = "KES " + pendingTotal.toLocaleString();
+    approvedTotalEl.textContent = "KES " + approvedTotal.toLocaleString();
+
+  } catch (err) {
+    console.error(err);
+    pendingList.innerHTML = "<tr><td colspan='5'>Error loading data</td></tr>";
+  }
+}
+
+async function updateStatus(id, status) {
+  try {
+    await fetch(`${BACKEND_URL}/contributions/${id}/status`, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({status})
+    });
+    alert(`Contribution ${status}`);
+    loadContributions();
+  } catch (err) {
+    console.error(err);
+    alert("Failed to update contribution");
+  }
+}
+
+loadContributions();
+</script>
+
+
+</body>
+</html>

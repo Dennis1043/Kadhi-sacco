@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>KADHI SACCO -LOGIN</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+
+  <style>
+    * { box-sizing: border-box; font-family: 'Roboto', sans-serif; margin:0; padding:0; }
+    body { background: #f8f8f8; color: #333; }
+    .container { padding: 2rem; max-width: 400px; margin: auto; }
+    .logo { text-align:center; margin:3rem 0 2rem 0; }
+    .logo img { width:80px; height:80px; display:block; margin:0 auto 1rem; }
+    .logo h1 { color:#800000; font-size:2rem; }
+    .tabs { display:flex; margin:2rem 0; }
+    .tabs button { flex:1; padding:1rem; border:none; background:#e0e0e0; color:#444; cursor:pointer; transition: background 0.3s, color 0.3s; }
+    .tabs button.active { background:#800000; color:white; }
+    .screen { display:none; }
+    .screen.active { display:block; }
+    input, button { width:100%; padding:1rem; margin:0.5rem 0; border-radius:5px; border:1px solid #ccc; font-size:1rem; }
+    button { background:#800000; color:white; border:none; font-weight:bold; cursor:pointer; transition: background 0.3s; }
+    button:hover { background:#a00000; }
+    .link { text-align:center; margin-top:1rem; }
+    .link span { color:#800000; cursor:pointer; }
+    .field { position:relative; }
+    .toggle-password { position:absolute; right:10px; top:50%; transform:translateY(-50%); cursor:pointer; color:#555; }
+    .rules { font-size:0.85rem; margin-top:0.5rem; }
+    .rules p { margin:0.2rem 0; }
+    .invalid { color:red; }
+    .valid { color:green; }
+    #enableNotificationsBtn { background:#004d40; margin-top:1rem; }
+    #enableNotificationsBtn:hover { background:#00332b; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">
+      <img src="icon.png" alt="Family Chama Logo" />
+      <h1>KADHI SACCO</h1>
+    </div>
+
+    <div class="tabs">
+      <button class="active" onclick="showTab('login')">Login</button>
+      <button onclick="showTab('register')">Register</button>
+      <button onclick="showTab('password')">Change Password</button>
+    </div>
+
+    <!-- Login -->
+    <div id="login" class="screen active">
+      <div class="field">
+        <input type="email" id="loginEmail" placeholder="Email" />
+      </div>
+      <div class="field">
+        <input type="password" id="loginPassword" placeholder="Password" />
+        <span class="material-icons toggle-password" onclick="togglePassword('loginPassword')">visibility</span>
+      </div>
+      <input type="text" id="adminCodeLogin" placeholder="Admin Code (optional)" />
+      <button onclick="login()">Login</button>
+    </div>
+
+    <!-- Register -->
+    <div id="register" class="screen">
+      <input type="text" id="registerName" placeholder="Full Name" />
+      <input type="text" id="registerNumber" placeholder="Phone Number (e.g. 2547XXXXXXXX)" />
+      <input type="email" id="registerEmail" placeholder="Email" />
+      <div class="field">
+        <input type="password" id="registerPassword" placeholder="Password" onkeyup="checkPasswordRules('registerPassword')"/>
+        <span class="material-icons toggle-password" onclick="togglePassword('registerPassword')">visibility</span>
+      </div>
+      <div class="rules" id="registerPasswordRules">
+        <p id="regLength" class="invalid">• At least 8 characters</p>
+        <p id="regUppercase" class="invalid">• At least one uppercase letter</p>
+        <p id="regLowercase" class="invalid">• At least one lowercase letter</p>
+        <p id="regNumber" class="invalid">• At least one number</p>
+        <p id="regSpecial" class="invalid">• At least one special character (!@#$%^&*)</p>
+      </div>
+      <input type="text" id="adminCodeRegister" placeholder="Admin Code (optional)" />
+      <button onclick="register()">Register</button>
+    </div>
+
+    <!-- Change/Reset Password -->
+    <div id="password" class="screen">
+      <input type="email" id="passwordEmail" placeholder="Email" />
+      <div class="field">
+        <input type="password" id="currentPassword" placeholder="Current Password" onkeyup="checkPasswordRules('newPassword')" />
+        <span class="material-icons toggle-password" onclick="togglePassword('currentPassword')">visibility</span>
+      </div>
+      <div class="field">
+        <input type="password" id="newPassword" placeholder="New Password" onkeyup="checkPasswordRules('newPassword')" />
+        <span class="material-icons toggle-password" onclick="togglePassword('newPassword')">visibility</span>
+      </div>
+      <div class="rules" id="newPasswordRules">
+        <p id="length" class="invalid">• At least 8 characters</p>
+        <p id="uppercase" class="invalid">• At least one uppercase letter</p>
+        <p id="lowercase" class="invalid">• At least one lowercase letter</p>
+        <p id="number" class="invalid">• At least one number</p>
+        <p id="special" class="invalid">• At least one special character (!@#$%^&*)</p>
+      </div>
+      <button onclick="changePassword()">Change Password</button>
+    </div>
+
+    <!-- Enable Notifications -->
+    <button id="enableNotificationsBtn">Enable Notifications</button>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.5.0/firebase-messaging-compat.js"></script>
+
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyCzRh_5_IhtpduiRh9hKiHKMyI7QzVML1g",
+    authDomain: "chama-96d8d.firebaseapp.com",
+    projectId: "chama-96d8d",
+    storageBucket: "chama-96d8d.appspot.com",
+    messagingSenderId: "849028550491",
+    appId: "1:849028550491:web:8bfbd1d13bb62f6f13d47e",
+  };
+  firebase.initializeApp(firebaseConfig);
+
+  const auth = firebase.auth();
+  const db = firebase.firestore();
+  const messaging = firebase.messaging();
+
+  const ADMIN_CODE = "ADMIN123";
+  const BACKEND_URL = "http://127.0.0.1:5000";
+  const DEFAULT_PASSWORD = "Password123!";
+
+  function showTab(tab) {
+    document.querySelectorAll(".screen").forEach(div => div.classList.remove("active"));
+    document.getElementById(tab).classList.add("active");
+    document.querySelectorAll(".tabs button").forEach(btn => btn.classList.remove("active"));
+    document.querySelectorAll(".tabs button").forEach(btn => {
+      if (btn.textContent.toLowerCase() === tab) btn.classList.add("active");
+    });
+  }
+
+  function togglePassword(id) {
+    const input = document.getElementById(id);
+    input.type = input.type === "password" ? "text" : "password";
+  }
+
+  function checkPasswordRules(fieldId) {
+    const pw = document.getElementById(fieldId).value;
+    const mapping = fieldId === 'registerPassword'
+      ? { length:'regLength', uppercase:'regUppercase', lowercase:'regLowercase', number:'regNumber', special:'regSpecial' }
+      : { length:'length', uppercase:'uppercase', lowercase:'lowercase', number:'number', special:'special' };
+
+    document.getElementById(mapping.length).className = pw.length >= 8 ? "valid" : "invalid";
+    document.getElementById(mapping.uppercase).className = /[A-Z]/.test(pw) ? "valid" : "invalid";
+    document.getElementById(mapping.lowercase).className = /[a-z]/.test(pw) ? "valid" : "invalid";
+    document.getElementById(mapping.number).className = /\d/.test(pw) ? "valid" : "invalid";
+    document.getElementById(mapping.special).className = /[!@#$%^&*]/.test(pw) ? "valid" : "invalid";
+  }
+
+  async function login() {
+    const email = document.getElementById("loginEmail").value.trim();
+    const password = document.getElementById("loginPassword").value.trim();
+    const adminCode = document.getElementById("adminCodeLogin").value.trim();
+    if (!email || !password) { alert("Please enter email and password."); return; }
+
+    try {
+      const cred = await auth.signInWithEmailAndPassword(email, password);
+      const firebaseUid = cred.user.uid;
+      localStorage.setItem("firebaseUid", firebaseUid);
+
+      const resp = await fetch(`${BACKEND_URL}/get_user/${firebaseUid}`);
+      const user = await resp.json();
+      if (!user || !user.id) { alert("User not found"); return; }
+
+      localStorage.setItem("userId", user.id);
+      localStorage.setItem("name", user.name || "");
+      localStorage.setItem("phone", user.phone || "");
+
+      if (password === DEFAULT_PASSWORD) {
+        alert("You are using the default password. Please set your own password now.");
+        showTab("password");
+        document.getElementById("passwordEmail").value = email;
+        return;
+      }
+
+      const role = user.role || "member";
+      if (adminCode === ADMIN_CODE && role === "admin") window.location.href = "admin.html";
+      else window.location.href = "dashboard.html";
+
+    } catch (error) { alert("Login failed: " + error.message); }
+  }
+
+  async function register() {
+    const name = document.getElementById("registerName").value.trim();
+    const number = document.getElementById("registerNumber").value.trim();
+    const email = document.getElementById("registerEmail").value.trim();
+    const password = document.getElementById("registerPassword").value.trim();
+    const adminCode = document.getElementById("adminCodeRegister").value.trim();
+    if (!name || !number || !email || !password) { alert("Please fill in all required fields."); return; }
+
+    if (!(password.length>=8 && /[A-Z]/.test(password) && /[a-z]/.test(password) && /\d/.test(password) && /[!@#$%^&*]/.test(password))) {
+      alert("Password does not meet requirements."); return;
+    }
+
+    try {
+      const cred = await auth.createUserWithEmailAndPassword(email, password);
+      const firebaseUid = cred.user.uid;
+      const role = adminCode === ADMIN_CODE ? "admin" : "member";
+
+      await db.collection("users").doc(firebaseUid).set({
+        name, phone:number, email, role,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+
+      const response = await fetch(`${BACKEND_URL}/register`, {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({firebase_uid:firebaseUid,name,phone:number,email,role})
+      });
+      const result = await response.json();
+      if (!result.error && result.id) {
+        localStorage.setItem("firebaseUid", firebaseUid);
+        localStorage.setItem("userId", result.id);
+        localStorage.setItem("name", name);
+        localStorage.setItem("phone", number);
+      }
+
+      alert("Registered successfully. Please log in.");
+      showTab("login");
+    } catch (error) { alert("Registration failed: " + error.message); }
+  }
+
+  async function changePassword() {
+    const email = document.getElementById("passwordEmail").value.trim();
+    const currentPassword = document.getElementById("currentPassword").value.trim();
+    const newPassword = document.getElementById("newPassword").value.trim();
+
+    if (!email || !currentPassword || !newPassword) { alert("All fields are required."); return; }
+
+    if (!(newPassword.length>=8 && /[A-Z]/.test(newPassword) && /[a-z]/.test(newPassword) && /\d/.test(newPassword) && /[!@#$%^&*]/.test(newPassword))) {
+      alert("New password does not meet requirements."); return;
+    }
+
+    try {
+      const cred = await auth.signInWithEmailAndPassword(email, currentPassword);
+      const firebaseUid = cred.user.uid;
+
+      const response = await fetch(`${BACKEND_URL}/user/password/reset`, {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({firebase_uid:firebaseUid,new_password:newPassword})
+      });
+      const result = await response.json();
+      if (result.error) alert("Failed: " + result.error);
+      else {
+        alert("Password updated successfully. Please login again.");
+        await auth.signOut();
+        showTab("login");
+      }
+    } catch(err) { alert("Error: "+err.message); }
+  }
+
+  async function enableNotifications() {
+    try {
+      const permission = await Notification.requestPermission();
+      if(permission==="granted"){
+        const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+        messaging.useServiceWorker(registration);
+        const token = await messaging.getToken({vapidKey:'BHS5t_CN_45DbTPJLNTDb0WhIeUNS8NoXFnAwHO35V4j91tTBQx0OpMnzWSl_e8TmLnxWC3kbhjqbS3jJ5P-wW8'});
+        alert("Notifications enabled!");
+        const user = auth.currentUser;
+        if(user){
+          await fetch(`${BACKEND_URL}/save_fcm`,{
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({firebase_uid:user.uid,token})
+          });
+        }
+      } else alert("Notifications permission denied.");
+    } catch(err){ alert("Error enabling notifications: "+err.message); }
+  }
+
+  document.getElementById("enableNotificationsBtn").addEventListener("click", enableNotifications);
+</script>
+</body>
+</html>

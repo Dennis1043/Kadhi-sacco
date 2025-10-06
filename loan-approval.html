@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Loan Approval - Admin</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto&display=swap"/>
+  <style>
+    body { font-family:'Roboto',sans-serif; margin:0; background:#f5f5f5; }
+    header { background:#b80000; color:#fff; padding:15px; text-align:center; font-size:20px; font-weight:bold; }
+    .card { background:#fff; margin:15px; padding:15px; border-radius:10px; box-shadow:0 1px 3px rgba(0,0,0,0.1);}
+    .card-title { font-weight:bold; font-size:16px; color:#333; }
+    .card-value { font-size:22px; font-weight:bold; margin-top:5px; }
+    table { width:100%; border-collapse: collapse; margin-top:10px;}
+    th, td { border:1px solid #ddd; padding:8px; font-size:14px; text-align:left; }
+    th { background:#b80000; color:white; }
+    button { padding:5px 10px; border:none; border-radius:5px; cursor:pointer; }
+    .approve { background:green; color:white; }
+    .reject { background:red; color:white; }
+    .nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #ddd; display: flex; justify-content: space-around; padding: 0.5rem 0; z-index: 10; }
+    .nav a { text-decoration: none; color: #555; text-align: center; font-size: 12px; }
+    .nav i { font-size: 24px; }
+    .nav a.active, .nav a:hover { color: #b80000; }
+  </style>
+</head>
+<body>
+  <header>Loan Approval</header>
+
+  <!-- Totals -->
+  <div class="card">
+    <div class="card-title">Approved Loans</div>
+    <div class="card-value" id="approvedTotal">KES 0</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Pending Loans</div>
+    <div class="card-value" id="pendingTotal">KES 0</div>
+  </div>
+
+  <!-- Pending Loans -->
+  <div class="card">
+    <div class="card-title">Pending Loan Requests</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Member</th>
+          <th>Amount</th>
+          <th>Purpose</th>
+          <th>Date</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="pendingList"><tr><td colspan="5">Loading...</td></tr></tbody>
+    </table>
+  </div>
+
+  <!-- Approved Loans -->
+  <div class="card">
+    <div class="card-title">Approved Loan Requests</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Member</th>
+          <th>Amount</th>
+          <th>Purpose</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody id="approvedList"><tr><td colspan="4">Loading...</td></tr></tbody>
+    </table>
+  </div>
+
+  <nav class="nav">
+    <a href="dashboard.html">Home</a>
+    <a href="loan-approval.html" class="active">Loan Approval</a>
+    <a href="settings.html">Settings</a>
+  </nav>
+
+<script>
+const BACKEND_URL = "http://127.0.0.1:5000";
+
+const pendingList = document.getElementById("pendingList");
+const approvedList = document.getElementById("approvedList");
+const approvedTotalEl = document.getElementById("approvedTotal");
+const pendingTotalEl = document.getElementById("pendingTotal");
+
+async function renderLoans() {
+  try {
+    const res = await fetch(`${BACKEND_URL}/admin/loans/all`);
+    const data = await res.json();
+
+    pendingList.innerHTML = "";
+    approvedList.innerHTML = "";
+    let approvedTotal = 0, pendingTotal = 0;
+
+    data.rows.forEach(d => {
+      const dateStr = new Date(d.timestamp).toLocaleString();
+      const memberName = d.member_name || d.user_id;
+
+      if (d.status.toLowerCase() === "pending") {
+        pendingList.innerHTML += `
+          <tr>
+            <td>${memberName}</td>
+            <td>KES ${Number(d.amount).toLocaleString()}</td>
+            <td>${d.purpose || "-"}</td>
+            <td>${dateStr}</td>
+            <td>
+              <button class="approve" onclick="updateStatus(${d.id},'approved')">Approve</button>
+              <button class="reject" onclick="updateStatus(${d.id},'rejected')">Reject</button>
+            </td>
+          </tr>`;
+        pendingTotal += Number(d.amount) || 0;
+      } else if (d.status.toLowerCase() === "approved") {
+        approvedList.innerHTML += `
+          <tr>
+            <td>${memberName}</td>
+            <td>KES ${Number(d.amount).toLocaleString()}</td>
+            <td>${d.purpose || "-"}</td>
+            <td>${dateStr}</td>
+          </tr>`;
+        approvedTotal += Number(d.amount) || 0;
+      }
+    });
+
+    pendingTotalEl.textContent = "KES " + pendingTotal.toLocaleString();
+    approvedTotalEl.textContent = "KES " + approvedTotal.toLocaleString();
+
+  } catch (err) {
+    console.error("Failed to load loans:", err);
+    pendingList.innerHTML = "<tr><td colspan='5'>Error loading loans</td></tr>";
+    approvedList.innerHTML = "<tr><td colspan='4'>Error loading loans</td></tr>";
+  }
+}
+
+async function updateStatus(id, status) {
+  try {
+    const res = await fetch(`${BACKEND_URL}/admin/loans/${id}/status`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status })
+    });
+    const result = await res.json();
+    alert(result.message || "Status updated");
+    renderLoans();
+  } catch (err) {
+    console.error("Failed to update loan status:", err);
+    alert("Update failed");
+  }
+}
+
+window.onload = renderLoans;
+</script>
+</body>
+</html>

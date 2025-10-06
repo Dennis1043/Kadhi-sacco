@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Loans & Repayments</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+  <style>
+    body { margin:0; font-family:'Roboto',sans-serif; background:#f5f5f5; padding-bottom:80px;}
+    header { background:#b80000;color:white;padding:16px;text-align:center;font-size:1.2rem;}
+    main { padding:16px;}
+    form { background:white;border-radius:8px;padding:16px;margin-bottom:24px;box-shadow:0 2px 5px rgba(0,0,0,0.1);}
+    input, button { width:100%;padding:10px;margin-top:10px;border-radius:6px;font-size:1rem;box-sizing:border-box;}
+    button { background:#b80000;color:white;border:none;cursor:pointer;}
+    h3 { margin-top:24px;color:#b80000;}
+    ul { list-style:none;padding:0;}
+    li { background:white;padding:12px;margin-bottom:8px;border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,0.1);}
+    .status{font-weight:bold;margin-top:4px;text-transform:capitalize;}
+    .pending{color:orange;} .approved{color:green;} .rejected{color:red;}
+    .toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.7);color:white;padding:12px 16px;border-radius:6px;opacity:0;transition:opacity 0.3s;pointer-events:none;z-index:100;}
+    .toast.visible{opacity:1;pointer-events:auto;}
+    .nav{position:fixed;bottom:0;left:0;right:0;background:white;border-top:1px solid #ddd;display:flex;justify-content:space-around;padding:0.5rem 0;z-index:10;}
+    .nav a{text-decoration:none;color:#555;text-align:center;font-size:12px;}
+    .nav i{font-size:24px;}
+    .nav a.active,.nav a:hover{color:#b80000;}
+  </style>
+</head>
+<body>
+  <header>Loans & Repayments</header>
+  <main>
+
+    <!-- Loan Request -->
+    <form id="loanRequestForm">
+      <h3>Request Loan</h3>
+      <input type="number" id="loanAmount" placeholder="Amount (KES)" min="500" required />
+      <input type="text" id="loanPurpose" placeholder="Reason" required />
+      <input type="number" id="loanMonths" placeholder="Number of months to repay" min="1" required />
+      <button type="submit">Submit Request</button>
+    </form>
+
+    <!-- Pending Loan Balance -->
+    <div id="pendingLoanCard" style="background:white;border-radius:8px;padding:16px;margin-bottom:24px;box-shadow:0 2px 5px rgba(0,0,0,0.1);">
+      <h3 style="margin:0;color:#b80000;">Pending Loan Balance</h3>
+      <p id="pendingLoanAmount" style="font-size:1.5rem;font-weight:bold;margin:8px 0 0;">Loading...</p>
+    </div>
+
+    <!-- Loan Repayment -->
+    <form id="loanRepaymentForm">
+      <h3>Repay Loan</h3>
+      <input type="text" id="repaymentPhone" placeholder="Phone (e.g., 2547XXXXXXXX)" required pattern="2547\d{8}" />
+      <input type="number" id="repaymentAmount" placeholder="Repayment (KES)" min="1" required />
+      <input type="text" id="repaymentMpesa" placeholder="Mpesa Code" required />
+      <input type="text" id="repaymentNote" placeholder="Note (optional)" />
+      <button type="submit">Submit Repayment</button>
+    </form>
+
+    <h3>Loan History</h3>
+    <ul id="loanList"></ul>
+  </main>
+
+  <div id="toast" class="toast"></div>
+
+  <!-- Bottom Nav -->
+  <nav class="nav">
+    <a href="dashboard.html"><i class="material-icons">home</i>Home</a>
+    <a href="contribution.html"><i class="material-icons">payments</i>Contribute</a>
+    <a href="loan-request.html" class="active"><i class="material-icons">request_quote</i>Loan</a>
+    <a href="view-balance.html"><i class="material-icons">account_balance_wallet</i>Balance</a>
+    <a href="index.html"><i class="material-icons">logout</i>Logout</a>
+  </nav>
+
+  <script>
+  const toast = document.getElementById('toast');
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add('visible');
+    setTimeout(() => toast.classList.remove('visible'), 3000);
+  }
+
+  // Get stored IDs
+  const userId = localStorage.getItem("userId");        // MySQL ID
+  const firebaseUid = localStorage.getItem("firebaseUid"); // Firebase UID
+  const userName = localStorage.getItem("name");
+  const userPhone = localStorage.getItem("phone");
+
+  if (!userId || !firebaseUid) window.location.href = "index.html";
+
+  // Loan Request
+  document.getElementById("loanRequestForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const amount = parseFloat(document.getElementById("loanAmount").value);
+    const purpose = document.getElementById("loanPurpose").value.trim();
+    const months = parseInt(document.getElementById("loanMonths").value);
+
+    try {
+      const res = await fetch("/api/loans/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firebase_uid: firebaseUid,
+          name: userName,
+          phone: userPhone,
+          amount,
+          purpose,
+          months
+        })
+      });
+      const data = await res.json();
+      showToast(data.message || data.error || "Request submitted");
+      loadHistory();
+      e.target.reset();
+    } catch (err) {
+      showToast("Error submitting loan request");
+      console.error(err);
+    }
+  });
+
+  // Loan Repayment
+  document.getElementById("loanRepaymentForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const phone = document.getElementById("repaymentPhone").value.trim();
+    const amount = parseFloat(document.getElementById("repaymentAmount").value);
+    const mpesaCode = document.getElementById("repaymentMpesa").value.trim();
+    const note = document.getElementById("repaymentNote").value.trim();
+
+    try {
+      const res = await fetch("/api/loans/repay", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firebase_uid: firebaseUid,
+          phone,
+          amount,
+          mpesaCode,
+          note
+        })
+      });
+      const data = await res.json();
+      showToast(data.message || data.error || "Repayment submitted");
+      loadHistory();
+      e.target.reset();
+    } catch (err) {
+      showToast("Error submitting repayment");
+      console.error(err);
+    }
+  });
+
+  // Load Loan + Repayment History
+  async function loadHistory() {
+    const list = document.getElementById("loanList");
+    const pendingLoanDisplay = document.getElementById("pendingLoanAmount");
+    const card = document.getElementById("pendingLoanCard");
+
+    try {
+      const res = await fetch(`/api/loans/history/${firebaseUid}`);
+      const data = await res.json();
+
+      if (data.error) {
+        list.innerHTML = `<li>${data.error}</li>`;
+        pendingLoanDisplay.textContent = "Error loading balance";
+        return;
+      }
+
+      let totalApprovedLoans = 0;
+      let totalRepayments = 0;
+      let combined = [];
+
+      // Sum only approved loans for pending calculation
+      (data.loans || []).forEach(l => {
+        if (l.status === "approved") totalApprovedLoans += Number(l.amount);
+        combined.push({ type: "loan", ...l });
+      });
+
+      (data.repayments || []).forEach(r => {
+        totalRepayments += Number(r.amount);
+        combined.push({ type: "repayment", ...r });
+      });
+
+      const pendingBalance = Math.max(0, totalApprovedLoans - totalRepayments);
+
+      if (pendingBalance > 0) {
+        pendingLoanDisplay.textContent = `KES ${pendingBalance.toLocaleString()}`;
+        pendingLoanDisplay.style.color = "#b80000";
+        card.style.borderLeft = "6px solid #b80000";
+      } else {
+        pendingLoanDisplay.textContent = "No Loan Pending ✅";
+        pendingLoanDisplay.style.color = "green";
+        card.style.borderLeft = "6px solid green";
+      }
+
+      // Sort combined history by timestamp descending
+      combined.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+      list.innerHTML = combined.length ? "" : "<li>No history yet</li>";
+
+      combined.forEach(item => {
+        const li = document.createElement("li");
+        if (item.type === "loan") {
+          li.innerHTML = `
+            Loan: KES ${Number(item.amount).toLocaleString()} – ${item.purpose || "-"}
+            <div class="status ${item.status}">${item.status}</div>
+          `;
+        } else {
+          li.innerHTML = `
+            Repayment: KES ${Number(item.amount).toLocaleString()}<br>
+            Mpesa Code: ${item.mpesaCode || "-"}<br>
+            Phone: ${item.phone || "-"}
+            <div class="status ${item.status}">${item.status}</div>
+          `;
+        }
+        list.appendChild(li);
+      });
+
+    } catch (err) {
+      pendingLoanDisplay.textContent = "Error loading balance";
+      list.innerHTML = "<li>Error loading history</li>";
+      console.error(err);
+    }
+  }
+
+  loadHistory();
+</script>
+
+</body>
+</html>

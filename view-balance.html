@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>View Balance - KADHI SACCO</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Roboto', sans-serif;
+      background-color: #f3f6fb;
+      color: #333;
+    }
+
+    .navbar {
+      background-color: #004e1a;
+      padding: 1rem;
+      color: white;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .navbar h2 {
+      font-size: 20px;
+      margin: 0;
+    }
+
+    .container {
+      padding: 1.2rem;
+    }
+
+    .card {
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .card h3 {
+      margin: 0;
+      font-size: 16px;
+      color: #004e1a;
+    }
+
+    .card p {
+      margin-top: 0.3rem;
+      font-size: 20px;
+      font-weight: bold;
+    }
+
+    .nav-bottom {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: space-around;
+      background: white;
+      border-top: 1px solid #ddd;
+      padding: 0.5rem 0;
+    }
+
+    .nav-bottom a {
+      text-align: center;
+      color: #555;
+      text-decoration: none;
+      font-size: 12px;
+    }
+
+    .nav-bottom i {
+      display: block;
+      font-size: 22px;
+      margin-bottom: 2px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="navbar">
+    <h2>My Balance</h2>
+    <span class="material-icons">account_circle</span>
+  </div>
+
+  <div class="container">
+    <div class="card">
+      <h3>Total Contributions</h3>
+      <p id="contributionTotal">KES 0</p>
+    </div>
+
+    <div class="card">
+      <h3>Total Loans Taken</h3>
+      <p id="loanTotal">KES 0</p>
+    </div>
+
+    <div class="card">
+      <h3>Total Loan Repayments</h3>
+      <p id="repaymentTotal">KES 0</p>
+    </div>
+  </div>
+
+  <div class="nav-bottom">
+    <a href="dashboard.html">
+      <i class="material-icons">dashboard</i>Home
+    </a>
+    <a href="loan-request.html">
+      <i class="material-icons">request_quote</i>Loans
+    </a>
+    <a href="view-balance.html">
+      <i class="material-icons">account_balance_wallet</i>Balance
+    </a>
+    <a href="index.html">
+      <i class="material-icons">logout</i>Logout
+    </a>
+  </div>
+
+ <script>
+async function loadBalance() {
+  try {
+    const firebaseUid = localStorage.getItem("firebaseUid");
+    if (!firebaseUid) {
+      alert("User not logged in");
+      window.location.href = "index.html";
+      return;
+    }
+
+    // Call Flask backend with UID
+    const res = await fetch(`http://127.0.0.1:5000/balance?uid=${firebaseUid}`);
+    const data = await res.json();
+
+    if (data.error) {
+      console.error(data.error);
+      return;
+    }
+
+    document.getElementById("contributionTotal").innerText =
+      `KES ${Number(data.contributions || 0).toLocaleString()}`;
+    document.getElementById("loanTotal").innerText =
+      `KES ${Number(data.loans || 0).toLocaleString()}`;
+    document.getElementById("repaymentTotal").innerText =
+      `KES ${Number(data.repayments || 0).toLocaleString()}`;
+  } catch (err) {
+    console.error("Error loading balance:", err);
+  }
+}
+
+window.onload = loadBalance;
+</script>
+
+</body>
+</html>

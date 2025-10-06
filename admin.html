@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Dashboard</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto&display=swap"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+  <style>
+    body { font-family: 'Roboto', sans-serif; margin: 0; background-color: #f4f4f4; }
+    header { display: flex; justify-content: space-between; align-items: center;
+      background: #fff; padding: 15px 20px; font-weight: bold; font-size: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1); position: relative; }
+    .notif-dropdown { display: none; position: absolute; right: 10px; top: 50px; background: #fff;
+      border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      width: 280px; max-height: 300px; overflow-y: auto; z-index: 999; }
+    .notif-item { padding: 10px; border-bottom: 1px solid #eee; font-size: 14px; cursor: pointer; }
+    .notif-item:last-child { border-bottom: none; }
+    .card { background: #ffffff; margin: 15px; padding: 15px; border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .card-title { font-weight: bold; font-size: 16px; color: #444; }
+    .card-value { font-size: 24px; font-weight: bold; margin-top: 5px; }
+    .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin: 15px; }
+    .grid button { display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 20px; background: #fff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      border: none; font-size: 14px; font-weight: bold; position: relative; cursor: pointer; }
+    .grid button i { font-size: 24px; margin-bottom: 5px; }
+    .grid .badge { position: absolute; top: 5px; right: 10px; background-color: red; color: white;
+      font-size: 12px; border-radius: 50%; padding: 2px 6px; }
+
+    .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.6); justify-content: center; align-items: center; }
+    .modal-content { background: white; padding: 20px; border-radius: 12px; text-align: center;
+      width: 400px; max-height: 80%; overflow-y: auto; box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
+    .modal-content h2 { margin-bottom: 15px; }
+    .modal-content button { margin-top: 15px; padding: 8px 16px; border: none; background: red;
+      color: white; border-radius: 6px; cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+    th, td { border: 1px solid #ddd; padding: 8px; font-size: 12px; text-align: left; }
+    th { background-color: #f2f2f2; }
+  </style>
+</head>
+<body>
+<header>
+  Admin Dashboard
+  <div class="notif-icon" onclick="toggleNotifDropdown()">
+    <i class="fas fa-bell"></i>
+    <span class="badge" id="notifCount">0</span>
+    <div id="notifDropdown" class="notif-dropdown"></div>
+  </div>
+</header>
+
+<!-- Totals -->
+<div class="card">
+  <div class="card-title">Total Contributions</div>
+  <div class="card-value" id="totalContributions">Loading...</div>
+</div>
+<div class="card">
+  <div class="card-title">Total Loans</div>
+  <div class="card-value" id="totalLoans">Loading...</div>
+</div>
+<div class="card">
+  <div class="card-title">Next Contribution Due</div>
+  <div class="card-value" id="nextDue">--</div>
+</div>
+
+<!-- Action Buttons -->
+<div class="grid">
+  <button onclick="window.location.href='repayment.html'">
+    <i class="fas fa-check-circle"></i> Approve Cash
+    <span class="badge" id="cashNotif"></span>
+  </button>
+  <button onclick="window.location.href='loan-approval.html'">
+    <i class="fas fa-check-circle"></i> Approve Loans
+    <span class="badge" id="loanNotif"></span>
+  </button>
+  <button onclick="window.location.href='repaymentapproval.html'">
+    <i class="fas fa-check-circle"></i> Loan Repayment
+    <span class="badge" id="loanrepaymentNotif"></span>
+  </button>
+  <button onclick="window.location.href='settings.html'">
+    <i class="fas fa-cog"></i> Settings
+  </button>
+  <button onclick="window.location.href='contribution.html'">
+    <i class="fas fa-dollar-sign"></i> Contribute
+  </button>
+  <button onclick="window.location.href='loan-request.html'">
+    <i class="fas fa-file-invoice-dollar"></i> Loan Request
+  </button>
+  <button onclick="window.location.href='admin-summary.html'">
+    <i class="fas fa-note"></i> Summary
+  </button>
+  <button onclick="openModal()">
+    <i class="fas fa-file-excel"></i> Import Excel
+  </button>
+</div>
+
+<!-- Excel Modal -->
+<div id="excelModal" class="modal">
+  <div class="modal-content">
+    <h2>Import Excel Data</h2>
+    <input type="file" id="excelFile" accept=".xlsx, .xls, .csv" />
+    <br><br>
+    <button onclick="previewExcel()">Preview</button>
+    <button onclick="importExcel()">Upload</button>
+    <button onclick="closeModal()">Cancel</button>
+    <div id="previewContainer"></div>
+  </div>
+</div>
+
+<script>
+const BACKEND_URL = "http://127.0.0.1:5000";
+
+const notifCountEl = document.getElementById("notifCount");
+const notifDropdown = document.getElementById("notifDropdown");
+const cashNotifEl = document.getElementById("cashNotif");
+const loanNotifEl = document.getElementById("loanNotif");
+const loanrepaymentNotifEl = document.getElementById("loanrepaymentNotif");
+
+let notificationBuckets = { contributions: [], loans: [], repayments: [] };
+
+function toggleNotifDropdown() {
+  notifDropdown.style.display = notifDropdown.style.display === "block" ? "none" : "block";
+}
+
+function renderNotifications() {
+  const all = [
+    ...notificationBuckets.contributions,
+    ...notificationBuckets.loans,
+    ...notificationBuckets.repayments
+  ];
+  notifCountEl.textContent = all.length || "";
+  notifDropdown.innerHTML = all.length
+    ? all.map(n => `<div class="notif-item">${n}</div>`).join("")
+    : `<div class="notif-item">No new notifications</div>`;
+}
+
+function updateNotifications(bucket, items) {
+  notificationBuckets[bucket] = items;
+  renderNotifications();
+}
+
+async function loadNotifications() {
+  try {
+    const res = await fetch(`${BACKEND_URL}/admin/notifications`);
+    const data = await res.json();
+
+    const contribArr = data.contributions.map(c => `Pending contribution KSh ${c.amount} from ${c.member_name}`);
+    const loanArr = data.loans.map(l => `Loan request KSh ${l.amount} from ${l.member_name}`);
+    const repayArr = data.repayments.map(r => `Repayment KSh ${r.amount} from ${r.member_name}`);
+
+    cashNotifEl.textContent = contribArr.length || "";
+    loanNotifEl.textContent = loanArr.length || "";
+    loanrepaymentNotifEl.textContent = repayArr.length || "";
+
+    updateNotifications("contributions", contribArr);
+    updateNotifications("loans", loanArr);
+    updateNotifications("repayments", repayArr);
+  } catch(err) {
+    console.error("Failed to load notifications:", err);
+  }
+}
+
+async function loadTotals() {
+  try {
+    const res = await fetch(`${BACKEND_URL}/admin/totals`);
+    const data = await res.json();
+    document.getElementById("totalContributions").textContent = "KSh " + Number(data.contributions || 0).toLocaleString();
+    document.getElementById("totalLoans").textContent = "KSh " + Number(data.loans || 0).toLocaleString();
+
+    const resSettings = await fetch(`${BACKEND_URL}/settings`);
+    const settings = await resSettings.json();
+    if (settings.next_contribution_date) {
+      const nextDate = new Date(settings.next_contribution_date);
+      const formatted = nextDate.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+      document.getElementById("nextDue").textContent = formatted;
+    } else {
+      document.getElementById("nextDue").textContent = "--";
+    }
+  } catch(err) {
+    console.error("Failed to load totals:", err);
+    document.getElementById("nextDue").textContent = "--";
+  }
+}
+
+// Excel Modal
+function openModal() { document.getElementById("excelModal").style.display = "flex"; }
+function closeModal() { 
+  document.getElementById("excelModal").style.display = "none"; 
+  document.getElementById("previewContainer").innerHTML = "";
+}
+
+async function importExcel() {
+  const fileInput = document.getElementById("excelFile");
+  const file = fileInput.files[0];
+  if (!file) return alert("Please select an Excel or CSV file first!");
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  try {
+    const res = await fetch(`${BACKEND_URL}/admin/import_data`, {
+      method: "POST",
+      body: formData
+    });
+    const result = await res.json();
+    alert(result.message || "Import complete!");
+    closeModal();
+  } catch (err) {
+    console.error(err);
+    alert("Failed to import file.");
+  }
+}
+
+// Excel Preview
+function previewExcel() {
+  const fileInput = document.getElementById("excelFile");
+  const file = fileInput.files[0];
+  if (!file) return alert("Please select a file first!");
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const data = new Uint8Array(e.target.result);
+    const workbook = XLSX.read(data, {type: 'array'});
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    const json = XLSX.utils.sheet_to_json(worksheet, {header:1});
+    
+    if (json.length === 0) return alert("File is empty.");
+
+    let html = "<table>";
+    json.forEach((row, i) => {
+      html += "<tr>";
+      row.forEach(cell => {
+        html += i === 0 ? `<th>${cell}</th>` : `<td>${cell}</td>`;
+      });
+      html += "</tr>";
+    });
+    html += "</table>";
+    document.getElementById("previewContainer").innerHTML = html;
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// Load everything
+window.onload = async () => {
+  await loadNotifications();
+  await loadTotals();
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings</title>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <!-- Firebase core -->
+<script src="https://www.gstatic.com/firebasejs/9.24.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.24.0/firebase-messaging-compat.js"></script>
+
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .card {
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      max-width: 500px;
+      margin: auto;
+    }
+    .card h2 {
+      margin-top: 0;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    input {
+      width: 100%;
+      padding: 8px;
+      box-sizing: border-box;
+    }
+    button {
+      padding: 10px 20px;
+      background: #b80000;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #900000;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Settings</h2>
+    <div class="form-group">
+      <label for="monthlyContribution">Monthly Contribution (KSh)</label>
+      <input type="number" id="monthlyContribution">
+    </div>
+    <div class="form-group">
+      <label for="loanInterest">Loan Interest Rate (%)</label>
+      <input type="number" id="loanInterest">
+    </div>
+    <div class="form-group">
+      <label for="defaultFine">Default Fine (KSh)</label>
+      <input type="number" id="defaultFine">
+    </div>
+    <div class="form-group">
+      <label for="gracePeriod">Loan Grace Period (Days)</label>
+      <input type="number" id="gracePeriod">
+    </div>
+    <div class="form-group">
+      <label for="contributionDuration">Contribution Duration (e.g., Monthly, Weekly)</label>
+      <input type="text" id="contributionDuration">
+    </div>
+    <div class="form-group">
+      <label for="nextContributionDate">Next Contribution Date</label>
+      <input type="date" id="nextContributionDate">
+    </div>
+    <button onclick="saveSettings()">Save Settings</button>
+      <nav class="nav">
+    <a href="admin.html"><i class="material-icons"></i>Back</a>
+    
+  </nav>
+  </div>
+
+<script>
+const BACKEND_URL = "http://127.0.0.1:5000";
+
+async function loadSettings() {
+  try {
+    const res = await fetch(`${BACKEND_URL}/settings`);
+    const d = await res.json();
+
+    document.getElementById("monthlyContribution").value = d.monthly_contribution || "";
+    document.getElementById("loanInterest").value = d.loan_interest || "";
+    document.getElementById("defaultFine").value = d.default_fine || "";
+    document.getElementById("gracePeriod").value = d.grace_period || "";
+    document.getElementById("contributionDuration").value = d.contribution_duration || "";
+    document.getElementById("nextContributionDate").value = d.next_contribution_date || "";
+  } catch (err) {
+    console.error(err);
+    alert("Failed to load settings");
+  }
+}
+
+async function saveSettings() {
+  try {
+    const body = {
+      monthlyContribution: document.getElementById("monthlyContribution").value,
+      loanInterest: document.getElementById("loanInterest").value,
+      defaultFine: document.getElementById("defaultFine").value,
+      gracePeriod: document.getElementById("gracePeriod").value,
+      contributionDuration: document.getElementById("contributionDuration").value,
+      nextContributionDate: document.getElementById("nextContributionDate").value,
+    };
+
+    const res = await fetch(`${BACKEND_URL}/settings`, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(body)
+    });
+
+    const result = await res.json();
+    alert(result.message || "Settings saved");
+  } catch (err) {
+    console.error(err);
+    alert("Failed to save settings");
+  }
+}
+
+window.onload = loadSettings;
+</script>
+
+</body>
+</html>

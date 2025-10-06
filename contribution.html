@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>KADHI SACCO - Contributions</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+  <style>
+    body { font-family: 'Roboto', sans-serif; margin: 0; background: #f5f5f5; padding-bottom: 80px; }
+    header { background-color: #b80000; color: white; padding: 1rem; text-align: center; font-size: 1.2rem; }
+    main { padding: 1rem; }
+    form { background: white; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    form input, form button { width: 100%; padding: 0.75rem; margin: 0.5rem 0; font-size: 1rem; }
+    form button { background: #b80000; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    table { width: 100%; background: white; border-collapse: collapse; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 1rem; }
+    th, td { padding: 0.75rem; border-bottom: 1px solid #eee; text-align: left; font-size: 0.9rem; }
+    th { background: #b80000; color: white; }
+    .nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #ddd; display: flex; justify-content: space-around; padding: 0.5rem 0; z-index: 100; }
+    .nav a { text-decoration: none; color: #777; display: flex; flex-direction: column; align-items: center; font-size: 0.75rem; }
+    .nav a.active, .nav a:hover { color: #b80000; }
+    .material-icons { font-size: 24px; }
+    .summary { display:flex; gap:12px; align-items:center; margin-bottom:12px; flex-wrap:wrap; }
+    .summary .card { background:white;padding:12px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.06); min-width:150px; }
+    .status-pending { color: orange; font-weight: bold; }
+    .status-approved { color: green; font-weight: bold; }
+    .status-rejected { color: red; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <header>Contributions</header>
+
+  <main>
+    <!-- Contribution form -->
+    <form id="contributionForm">
+      <label>Amount:</label>
+      <input type="number" id="amount" placeholder="100" required>
+
+      <label>Purpose:</label>
+      <input type="text" id="purpose" placeholder="contribution" required>
+
+      <label>M-Pesa Code:</label>
+      <input type="text" id="mpesaCode" placeholder="e.g. QJD7YXJ9" required>
+
+      <label>Upload Screenshot (Optional):</label>
+      <input type="file" id="screenshot" accept="image/*">
+
+      <button type="submit">Submit Contribution</button>
+    </form>
+
+    <!-- Summary -->
+    <div class="summary">
+      <div class="card">
+        <div style="font-size:12px;color:#666">Approved Contributions</div>
+        <div id="approvedTotal" style="font-weight:700;font-size:18px">KES 0</div>
+      </div>
+      <div class="card" id="pendingCard">
+        <div style="font-size:12px;color:#666">Pending Contributions</div>
+        <div id="pendingTotal" style="font-weight:700;font-size:18px">KES 0</div>
+      </div>
+    </div>
+
+    <!-- My Contributions Table -->
+    <div>
+      <h3>My Contribution History</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Amount</th>
+            <th>Purpose</th>
+            <th>Code</th>
+            <th>Status</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody id="myContributionsList">
+          <tr><td colspan="5">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <nav class="nav">
+    <a href="dashboard.html"><span class="material-icons">home</span>Home</a>
+    <a href="contribution.html" class="active"><span class="material-icons">account_balance_wallet</span>Contribute</a>
+    <a href="loan-request.html"><span class="material-icons">request_quote</span>Loan</a>
+    <a href="view-balance.html"><span class="material-icons">account_balance</span>Balance</a>
+    <a href="index.html"><span class="material-icons">logout</span>Logout</a>
+  </nav>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+
+  <script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCzRh_5_IhtpduiRh9hKiHKMyI7QzVML1g",
+  authDomain: "chama-96d8d.firebaseapp.com",
+  projectId: "chama-96d8d",
+  storageBucket: "chama-96d8d.appspot.com",
+  messagingSenderId: "849028550491",
+  appId: "1:849028550491:web:8bfbd1d13bb62f6f13d47e"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+
+const BACKEND_URL = "http://127.0.0.1:5000";
+
+const myContribTbody = document.getElementById('myContributionsList');
+const approvedTotalEl = document.getElementById('approvedTotal');
+const pendingTotalEl = document.getElementById('pendingTotal');
+const pendingCard = document.getElementById('pendingCard');
+
+function renderStatus(status) {
+  if (status === "approved") return `<span class="status-approved">Approved</span>`;
+  if (status === "pending") return `<span class="status-pending">Pending</span>`;
+  if (status === "rejected") return `<span class="status-rejected">Rejected</span>`;
+  return status;
+}
+
+auth.onAuthStateChanged(user => {
+  if (!user) return window.location.href = "index.html";
+
+  // Load only my contributions
+  fetch(`${BACKEND_URL}/contributions/my?uid=${user.uid}`)
+    .then(res => res.json())
+    .then(data => {
+      myContribTbody.innerHTML = "";
+      let approvedTotal = 0, pendingTotal = 0;
+      data.rows.forEach(d => {
+        if (d.status === "approved") approvedTotal += Number(d.amount) || 0;
+        if (d.status === "pending") pendingTotal += Number(d.amount) || 0;
+
+        myContribTbody.innerHTML += `
+          <tr>
+            <td>KES ${Number(d.amount).toLocaleString()}</td>
+            <td>${d.purpose || ""}</td>
+            <td>${d.mpesa_code || ""}</td>
+            <td>${renderStatus(d.status)}</td>
+            <td>${new Date(d.timestamp).toLocaleString()}</td>
+          </tr>`;
+      });
+      approvedTotalEl.textContent = `KES ${approvedTotal.toLocaleString()}`;
+      if (pendingTotal > 0) {
+        pendingCard.style.display = "block";
+        pendingTotalEl.textContent = `KES ${pendingTotal.toLocaleString()}`;
+      } else {
+        pendingCard.style.display = "none";
+      }
+    });
+
+  // Submit contribution form
+  document.getElementById("contributionForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const formData = new FormData();
+    formData.append("user_id", user.uid);
+    formData.append("amount", document.getElementById("amount").value.trim());
+    formData.append("purpose", document.getElementById("purpose").value.trim());
+    formData.append("mpesaCode", document.getElementById("mpesaCode").value.trim());
+    const file = document.getElementById("screenshot").files[0];
+    if (file) formData.append("screenshot", file);
+
+    const res = await fetch(`${BACKEND_URL}/contributions/add`, {
+      method: "POST",
+      body: formData
+    });
+    const result = await res.json();
+    alert(result.message || "Error submitting contribution.");
+    document.getElementById("contributionForm").reset();
+    location.reload();
+  });
+});
+</script>
+
+</body>
+</html>

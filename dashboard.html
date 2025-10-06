@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>KADHI SACCO WELCOME</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+<style>
+  body { margin:0; font-family:'Inter',sans-serif; padding-bottom:100px; background:#f5f5f5;}
+  header { background:#b10421; color:white; padding:16px; font-size:1.3rem; font-weight:600; display:flex; justify-content:space-between; align-items:center;}
+  .greeting { padding:16px; font-size:1.2rem; font-weight:500;}
+
+  /* Horizontal summary cards container */
+  .summary-row { display:flex; gap:12px; margin:12px 16px; }
+
+  .summary-card, .card { background:white; padding:16px; border-radius:12px; box-shadow:0 2px 5px rgba(0,0,0,0.05); flex:1; }
+  .summary-title { font-size:0.9rem; color:#444;}
+  .summary-amount { font-size:1.6rem; font-weight:600; margin-top:4px;}
+
+  .card { margin:12px 16px; }
+
+  .action-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin:16px;}
+  .action-box { background:#fff; border-radius:12px; text-align:center; padding:20px 10px; box-shadow:0 2px 4px rgba(0,0,0,0.04); color:#333; text-decoration:none;}
+  .action-box i { font-size:2rem; color:#4A2B18; margin-bottom:6px;}
+
+  /* Download dropdown */
+  .download-container { margin:16px; position:relative; }
+  .download-btn { background:#004d40; color:white; padding:12px; border:none; border-radius:8px; font-size:1rem; width:100%; cursor:pointer; }
+  .download-options { 
+    display:none; 
+    position:absolute; 
+    bottom:110%;   /* ⬅️ Open upwards */
+    left:0; 
+    right:0; 
+    background:white; 
+    border:1px solid #ddd; 
+    border-radius:8px; 
+    box-shadow:0 2px 8px rgba(0,0,0,0.1); 
+  }
+  .download-options a { display:block; padding:12px; text-decoration:none; color:#333; }
+  .download-options a:hover { background:#f5f5f5; }
+
+  nav { position:fixed; bottom:0; width:100%; background:#fff; border-top:1px solid #ccc; display:flex; justify-content:space-around; padding:10px 0;}
+  nav a { text-decoration:none; text-align:center; font-size:0.75rem; color:#333;}
+  nav i { display:block; font-size:1.5rem; margin-bottom:4px;}
+</style>
+</head>
+<body>
+
+<header>
+  <span>KADHI SACCO</span>
+  <div style="position:relative;">
+    <i class="material-icons">notifications</i>
+    <span id="notifBadge" style="display:none; position:absolute; top:-4px; right:-4px; background:red; color:white; font-size:10px; padding:2px 5px; border-radius:50%;">!</span>
+  </div>
+</header>
+
+<div class="greeting" id="greetingText">Welcome, Member</div>
+
+<!-- Horizontal summary cards -->
+<div class="summary-row">
+  <div class="summary-card">
+    <div class="summary-title">Total Contributions</div>
+    <div class="summary-amount" id="totalContributions">KES 0</div>
+  </div>
+  <div class="summary-card">
+    <div class="summary-title">Total Loans Taken</div>
+    <div class="summary-amount" id="totalLoans">KES 0</div>
+  </div>
+  <div class="summary-card">
+    <div class="summary-title">Total Loan Repayments</div>
+    <div class="summary-amount" id="totalRepayments">KES 0</div>
+  </div>
+</div>
+
+<!-- Vertical Next Contribution -->
+<div class="card">
+  <div class="summary-title">Next Contribution Due</div>
+  <div id="nextDue">--</div>
+</div>
+
+<div class="action-grid">
+  <a href="contribution.html" class="action-box"><i class="material-icons">savings</i>Make Contribution</a>
+  <a href="loan-request.html" class="action-box"><i class="material-icons">request_quote</i>Request Loan</a>
+  <a href="view-balance.html" class="action-box"><i class="material-icons">account_balance_wallet</i>View Balance</a>
+  <a href="loan-request.html#repay" class="action-box"><i class="material-icons">payments</i>Repay Loan</a>
+</div>
+
+<!-- Download My Info -->
+<div class="download-container">
+  <button class="download-btn" onclick="toggleDownload()">⬇️ Download My Info</button>
+  <div class="download-options" id="downloadOptions">
+    <a href="#" onclick="downloadFile('csv')">📄 Download CSV</a>
+    <a href="#" onclick="downloadFile('excel')">📊 Download Excel</a>
+    <a href="#" onclick="downloadFile('pdf')">📝 Download PDF</a>
+  </div>
+</div>
+
+<nav>
+  <a href="dashboard.html"><i class="material-icons">home</i>Home</a>
+  <a href="contribution.html"><i class="material-icons">attach_money</i>Contributions</a>
+  <a href="loan-request.html"><i class="material-icons">description</i>Loans</a>
+  <a href="fines.html"><i class="material-icons">gavel</i>Fines</a>
+</nav>
+
+<script>
+const BACKEND_URL = "http://127.0.0.1:5000";
+const firebaseUid = localStorage.getItem("firebaseUid"); // assume stored from login
+
+async function fetchJSON(url) {
+  try {
+    const res = await fetch(url);
+    return await res.json();
+  } catch (err) {
+    console.error("Fetch error:", url, err);
+    return null;
+  }
+}
+
+async function loadDashboard() {
+  if (!firebaseUid) { window.location.href="index.html"; return; }
+
+  // 1️⃣ User info
+  const user = await fetchJSON(`${BACKEND_URL}/user?uid=${firebaseUid}`);
+  if (user && !user.error) {
+    document.getElementById("greetingText").textContent = `Hello 👋, ${user.name}`;
+  }
+
+  // 2️⃣ Contributions
+  const contrib = await fetchJSON(`${BACKEND_URL}/balance?uid=${firebaseUid}`);
+  if (contrib && !contrib.error) {
+    document.getElementById("totalContributions").textContent = `KES ${contrib.contributions.toLocaleString()}`;
+    document.getElementById("totalLoans").textContent = `KES ${contrib.loans.toLocaleString()}`;
+    document.getElementById("totalRepayments").textContent = `KES ${contrib.repayments.toLocaleString()}`;
+  }
+
+  // 3️⃣ Settings (Next Contribution)
+  const settings = await fetchJSON(`${BACKEND_URL}/settings`);
+  if (settings && settings.next_contribution_date) {
+    document.getElementById("nextDue").textContent = settings.next_contribution_date;
+  }
+
+  // 4️⃣ Notifications
+  const notif = await fetchJSON(`${BACKEND_URL}/notifications?uid=${firebaseUid}`);
+  if (notif && notif.rows && notif.rows.length > 0) {
+    document.getElementById("notifBadge").style.display = "block";
+  }
+}
+
+function toggleDownload() {
+  const menu = document.getElementById("downloadOptions");
+  menu.style.display = menu.style.display === "block" ? "none" : "block";
+}
+
+function downloadFile(type) {
+  if (!firebaseUid) { alert("Please login again."); return; }
+  window.location.href = `${BACKEND_URL}/download/${type}?uid=${firebaseUid}`;
+  document.getElementById("downloadOptions").style.display = "none";
+}
+
+window.onload = loadDashboard;
+</script>
+
+</body>
+</html>
