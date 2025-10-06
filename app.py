@@ -1123,8 +1123,13 @@ import random, string
 try:
     firebase_admin.get_app()
 except ValueError:
-    cred = credentials.Certificate("kadhi-service-account.json")
-    firebase_admin.initialize_app(cred)
+    cred_json = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON")
+    if cred_json:
+        cred_dict = json.loads(cred_json)
+        cred = credentials.Certificate(cred_dict)
+        firebase_admin.initialize_app(cred)
+    else:
+        raise ValueError("Firebase credentials not found in environment variables.")
 
 @app.route("/admin/import_data", methods=["POST"])
 def admin_import_data():
