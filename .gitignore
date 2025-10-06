@@ -1,0 +1,8 @@
+# Ignore build files and dependencies
+dist_installer/
+node_modules/
+__pycache__/
+*.exe
+*.asar
+*.pyc
+.env
