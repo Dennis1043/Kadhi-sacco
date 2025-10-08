@@ -1,3 +1,4 @@
+import os
 from flask import Flask, send_from_directory, request, jsonify
 from flask_cors import CORS
 import mysql.connector
@@ -1121,15 +1122,29 @@ import random, string
 
 # Initialize Firebase Admin (update path to your service account)
 try:
+    # Check if Firebase is already initialized
     firebase_admin.get_app()
 except ValueError:
+    # Try to load from environment variable (for Render)
     cred_json = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON")
+
     if cred_json:
+        import json
+        # Initialize Firebase from environment variable
         cred_dict = json.loads(cred_json)
         cred = credentials.Certificate(cred_dict)
         firebase_admin.initialize_app(cred)
+        print("✅ Firebase initialized from environment variable.")
+    elif os.path.exists("kadhi-service-account.json"):
+        # Initialize Firebase from local file (for local testing)
+        cred = credentials.Certificate("kadhi-service-account.json")
+        firebase_admin.initialize_app(cred)
+        print("✅ Firebase initialized from local JSON file.")
     else:
-        raise ValueError("Firebase credentials not found in environment variables.")
+        raise FileNotFoundError(
+            "❌ Firebase credentials not found. Please set GOOGLE_APPLICATION_CREDENTIALS_JSON on Render "
+            "or upload kadhi-service-account.json locally."
+        )
 
 @app.route("/admin/import_data", methods=["POST"])
 def admin_import_data():
